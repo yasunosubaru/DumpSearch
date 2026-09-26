@@ -1,0 +1,30 @@
+# 默认按文本处理，自动归一化行尾
+* text=auto
+
+# ---- 源码：一律 LF 进仓库 ----
+*.py      text eol=lf
+*.cs      text eol=lf
+*.xaml    text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.xml     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.toml    text eol=lf
+*.config  text eol=lf
+*.gitignore   text eol=lf
+*.gitattributes text eol=lf
+
+# ---- Windows 批处理：必须 CRLF ----
+# cmd.exe 不把 LF 当行分隔符处理到底，多行 if (...) 块会被粘行：
+# 实测症状是 REM 被读成 ROJ、pause 和 if 拼成一条命令，整个脚本行为全乱。
+*.bat     text eol=crlf
+
+# ---- 二进制 ----
+*.ico     binary
+*.png     binary
+*.jpg     binary
+*.zip     binary
+*.exe     binary
+*.dll     binary
+*.pdb     binary

@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- 必须是 net8.0：Windows App SDK 1.8 的 XamlCompiler 对 net10.0 TFM
+         会以无提示的 "错误: 1" 失败。详见 README「构建踩坑」。 -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>DumpSearch.App</RootNamespace>
+    <AssemblyName>DumpSearch</AssemblyName>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- unpackaged 应用必须让 SDK 生成带 Windows App Runtime 引导器的入口点，
+         否则 exe 启动即报「应用程序无法启动」。 -->
+    <WindowsAppSdkBootstrapInitialize>true</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 把图标嵌进 exe 本身。少这一行的话，exe 在资源管理器和任务栏里
+         都是默认图标，只有窗口标题栏能靠 SetIcon 换掉——而 SetIcon 换的
+         恰恰是用户最少看到的地方。 -->
+    <ApplicationIcon>Assets\DumpSearch.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SatelliteResourceLanguages>zh-Hans;en-US</SatelliteResourceLanguages>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      必须显式写 CopyToPublishDirectory：只写 <Content Include="Assets\**" />
+      的话资源**只会**进 build 输出，dotnet publish 的产物里没有 Assets\。
+      症状很隐蔽——exe 里嵌的图标还在（ApplicationIcon 管的），
+      窗口标题栏图标却没了（SetIcon 找不到文件就跳过），
+      本机构建验证全绿，只有发给别人的发布包才缺东西。
+    -->
+    <Content Include="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

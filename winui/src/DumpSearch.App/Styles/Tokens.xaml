@@ -1,0 +1,216 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设计令牌（Design Tokens）。
+  集中定义间距、圆角、字号层级，让界面看起来"有系统"而不是"拼出来的"。
+  间距用 4 的倍数，符合 Fluent 的 4pt 网格。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="using:System">
+
+    <!-- 间距：4pt 网格 -->
+    <sys:Double x:Key="SpaceXSmall">4</sys:Double>
+    <sys:Double x:Key="SpaceSmall">8</sys:Double>
+    <sys:Double x:Key="SpaceMedium">12</sys:Double>
+    <sys:Double x:Key="SpaceLarge">16</sys:Double>
+    <sys:Double x:Key="SpaceXLarge">24</sys:Double>
+    <sys:Double x:Key="SpaceXxLarge">32</sys:Double>
+
+    <!-- 圆角：Fluent 控件体系用 4（控件）/ 8（卡片） -->
+    <CornerRadius x:Key="ControlRadius">4</CornerRadius>
+    <CornerRadius x:Key="CardRadius">8</CornerRadius>
+    <CornerRadius x:Key="OverlayRadius">8</CornerRadius>
+
+    <!-- 页面底色：必须让 Mica 透出来，所以根容器用 Transparent，
+         表面由"卡片"承载。给根 Grid 刷不透明色会把 Mica 完全盖住
+         （Mica 的价值就在于那层材质纹理）。 -->
+    <SolidColorBrush x:Key="PageBackgroundBrush" Color="Transparent" />
+
+    <!-- 卡片：WinUI 3 官方 Card 的做法是"极淡填充 + 1px 低对比描边"，
+         靠描边而不是色块来划分层次。 -->
+    <SolidColorBrush x:Key="CardStrokeBrush"
+                     Color="{ThemeResource CardStrokeColorDefaultBrush}" />
+    <SolidColorBrush x:Key="CardFillBrush"
+                     Color="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+    <SolidColorBrush x:Key="PanelStrokeBrush"
+                     Color="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+    <!-- 次要文字：所有说明性文本统一用这个，别再散落 Opacity -->
+    <SolidColorBrush x:Key="SecondaryTextBrush"
+                     Color="{ThemeResource TextFillColorSecondaryBrush}" />
+    <SolidColorBrush x:Key="TertiaryTextBrush"
+                     Color="{ThemeResource TextFillColorTertiaryBrush}" />
+    <!-- 表单标签：比 SecondaryText 更亮一点，否则在深色底上几乎看不见 -->
+    <SolidColorBrush x:Key="FieldLabelBrush"
+                     Color="{ThemeResource TextFillColorPrimaryBrush}" />
+
+    <!-- 危险色：删除相关一律用它，保持语义一致 -->
+    <SolidColorBrush x:Key="DangerBrush"
+                     Color="{ThemeResource SystemFillColorCriticalBrush}" />
+    <SolidColorBrush x:Key="WarningBrush"
+                     Color="{ThemeResource SystemFillColorCautionBrush}" />
+    <SolidColorBrush x:Key="SuccessBrush"
+                     Color="{ThemeResource SystemFillColorSuccessBrush}" />
+
+    <!--
+      强调色底（"保留此项"徽标用）。
+      刻意**不**用内置的 AccentFillColorDefaultBrush：内置键名随 SDK 版本变动，
+      引用一个本机不存在的键会在运行时抛 STATUS_STOWED_RESOURCES(0xC000027B)
+      让进程启动即崩，而 XamlCompiler 一声不吭。自己定义一份，零外部依赖。
+    -->
+    <SolidColorBrush x:Key="AccentBadgeBrush" Color="#338CFF" />
+
+    <!-- 悬停详情卡片的底色。同样自己定义，不赌内置键名。 -->
+    <SolidColorBrush x:Key="DetailCardFillBrush" Color="#F529273B" />
+    <SolidColorBrush x:Key="DetailCardStrokeBrush"
+                     Color="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+    <!-- 等宽字体：路径、摘要、哈希这类必须等宽对齐的内容 -->
+    <FontFamily x:Key="MonoFontFamily">Consolas, Cascadia Mono, monospace</FontFamily>
+    <x:Double x:Key="MonoFontSize">12</x:Double>
+
+    <!--
+      结果表的列宽**故意没有**做成资源。
+
+      直觉上抽成资源最合理（表头和数据行共用一份定义，改一处就够），但本机实测：
+      `ColumnDefinition.Width` 的类型是 GridLength，而 WinUI 3 的 XAML **不支持**
+      把 `x:Double` 资源赋给它——XamlCompiler 一声不吭地放过去，运行时直接抛
+      STATUS_STOWED_RESOURCES(0xC000027B)，进程启动即崩，堆栈只有
+      Microsoft.UI.Xaml.dll。（`x:Double` 里写 "*" 同理，'*' 根本不是合法数字。）
+
+      所以列宽在 MainWindow.xaml 的表头和数据行里各写一份字面量。
+      重复定宽会错位，因此加了 tools\lint_xaml.py 机械校验两处是否一致——
+      **被检查过的重复**比"靠自觉同步"可靠。
+    -->
+
+    <!-- 卡片样式：左侧色条 + 轻描边，避免大面积纯色块显得笨重 -->
+    <Style x:Key="CardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardFillBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardRadius}" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="CaptionStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- 表单字段标签：只调字号/字重/间距，不在这里设 Foreground。
+         本机实测显式指定前景色时标签会"占位但完全看不见"，
+         继承默认前景色则一切正常。 -->
+    <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.85" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+
+    <!-- 输入框：统一最小高度与内边距，密排时不至于忽高忽低 -->
+    <Style x:Key="FieldStyle" TargetType="TextBox">
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="10,4" />
+    </Style>
+
+    <!--
+      选项行。Padding **不能**设 0：CheckBox 靠 Padding 隔开方框和 Content 文字，
+      设成 0 会让复选框和文字贴死在一起（用户反馈过这个视觉问题）。
+      12,0,0,0 = 只加左侧间距，保持密排行高不变。
+    -->
+    <Style x:Key="CheckRowStyle" TargetType="CheckBox">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="12,0,0,0" />
+    </Style>
+
+    <Style x:Key="MonoPathStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource MonoFontSize}" />
+        <Setter Property="Opacity" Value="0.75" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- 结果表：紧凑但可读的行高 -->
+    <Style x:Key="ResultsListViewStyle" TargetType="ListView">
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="IsItemClickEnabled" Value="False" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+    <Style x:Key="ToolBarButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+        <Setter Property="Padding" Value="16,6" />
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <!--
+      自定义"文字按钮"，不 BasedOn 任何内置样式。
+      WinUI 3 内置的是 TextButtonStyle / SubtleButtonStyle / AccentButtonStyle，
+      **没有** LinkButtonStyle（那是 WinUI 2 的名字）。XamlCompiler 不会报错，
+      但运行时解析不到会抛 STATUS_STOWED_RESOURCES(0xC000027B) 直接崩在
+      Microsoft.UI.Xaml.dll 里。自己定义一份，零外部依赖。
+    -->
+    <Style x:Key="TextLinkButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8,2" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Foreground"
+                Value="{ThemeResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <!-- 结果行：去掉默认选中高亮块与内边距，让密集列表更干净 -->
+    <Style x:Key="ResultsItemContainerStyle" TargetType="ListViewItem">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="UseSystemFocusVisuals" Value="True" />
+    </Style>
+
+    <!-- 表头：吸顶用。小字 + 低对比，但字距拉开一点，读起来像标签而不是正文。 -->
+    <Style x:Key="ColumnHeaderStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+      悬停详情浮层。ToolTipService.ToolTip 可以挂任意内容，
+      所以直接给一个排好版的 StackPanel，而不是一串塞进 Title 的纯文本。
+    -->
+    <Style x:Key="DetailCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource DetailCardFillBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource DetailCardStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource OverlayRadius}" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="MaxWidth" Value="620" />
+    </Style>
+
+    <Style x:Key="DetailLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
+    <Style x:Key="DetailValueStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+</ResourceDictionary>

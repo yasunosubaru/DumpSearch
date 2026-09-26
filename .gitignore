@@ -1,0 +1,84 @@
+# ---- 构建产物 ----
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.bak
+*.orig
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# 发布中间产物
+publish/
+dist/
+*.zip
+*.sha256
+selftest.log
+
+# ---- 本地调试/诊断产物 ----
+# 这些是开发期截图，会把本机用户名（截图里显示 %TEMP% 展开的路径）带进仓库，
+# 所以不能提交。README 引用的截图另放在 docs/ 下的已脱敏版本。
+winui/*.png
+winui/*.jpg
+winui/tools/*.png
+
+# 注意：**不要**忽略 winui/src/**/Assets/*.png —— 那是应用图标资源，
+# 是构建的必需输入。`winui/*.png` 精确匹配只覆盖 winui 根目录。
+
+# XamlCompiler 的中间 XAML
+winui/src/**/obj/
+
+# 定位 XAML 编译崩溃时用的最小复现工程：里面是**临时桩代码**，
+# 不是可交付物，只对当时那次二分有意义。定位手法已固化到
+# lint_xaml.py（机械检查）和 bisect_runtime.py（按需二分），无需保留它。
+winui/Probe/
+
+# 定位过程中一次性写出来的二分脚本。它们针对的是具体那次排查
+# （找哪个属性不能写进 XAML），结论已经固化进 lint_xaml.py；
+# 脚本本身是"加一个片段试一次"的循环，留着只会让人以为它们是受支持的流程。
+# 需要重新二分时，bisect_runtime.py 是入口，片段边界用 CASE 注释标记。
+winui/tools/bisect_additive.py
+winui/tools/bisect_block3.py
+winui/tools/bisect_blocks.py
+winui/tools/bisect_grow_probe.py
+winui/tools/bisect_probe.py
+winui/tools/bisect_real_grow.py
+winui/tools/bisect_right.py
+winui/tools/bisect_right_full.py
+winui/tools/bisect_template.py
+winui/tools/bisect_thumb.py
+winui/tools/bisect_type.py
+winui/tools/bisect_xaml.py
+winui/tools/bisect_xaml_grow.py
+winui/tools/check_resources.py
+winui/tools/dbg_blocks.py
+winui/tools/patch_engine.py
+winui/tools/patch_viewmodel.py
+winui/tools/repro_xaml_csc.py
+winui/tools/test_checkbox.py
+winui/tools/test_cursor.py
+winui/tools/test_itemssource.py
+winui/tools/add_bom.py
+
+# 二分脚本的快照
+.bisect_stash/
+*.bisect
+
+# 扫描器自身的标记文件（万一有人把扫描目标指到仓库里）
+*.log
+
+# ---- 机器本地文件 ----
+# .lnk 里嵌的是**本机绝对路径**（工作目录、目标 exe），提交上去既泄露
+# 本机目录结构，又在别人机器上必然失效。要图标快捷方式就跑
+# `python winui\tools\make_shortcut.py`（可选加 --desktop 放桌面）。
+*.lnk
