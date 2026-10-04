@@ -214,6 +214,10 @@ internal static class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CloseHandle(IntPtr hObject);
 
+    /// <summary>窗口所在显示器的 DPI。返回 0 表示调用失败。</summary>
+    [DllImport("user32.dll")]
+    public static extern int GetDpiForWindow(IntPtr hwnd);
+
     /// <summary>取文件的属性位与逻辑大小（单次系统调用，不需 FileInfo 构造）。</summary>
     /// <param name="lastWriteTicks">
     /// 原始 FILETIME（自 1601-01-01 起的 100 纳秒数）。**故意不做单位换算**——

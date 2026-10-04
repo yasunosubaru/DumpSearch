@@ -44,7 +44,7 @@ public sealed partial class MainWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = AppWindow.GetFromWindowId(windowId);
-        appWindow.Resize(new Windows.Graphics.SizeInt32(1440, 900));
+        FitToDisplay(appWindow, hwnd);
         appWindow.Title = "Dump Search · 全盘重复文件查找";
 
         // 标题栏图标必须给**绝对路径**。SetIcon 拿到相对路径时会按当前工作
@@ -324,6 +324,59 @@ public sealed partial class MainWindow : Window
     private async void OnStartScan(object sender, RoutedEventArgs e)
     {
         await RunScanAsync();
+    }
+
+    /// <summary>
+    /// 让窗口初始大小适配**当前显示器的 DPI 与工作区**。
+    ///
+    /// 为什么不能写死 1440x900：<c>AppWindow.Resize</c> 收的是**物理像素**，
+    /// 而界面布局按**逻辑像素**算。150% 缩放的屏幕上，1440x900 物理只有
+    /// 960x600 逻辑，左栏固定 352 逻辑像素就吃掉 37% 宽度，
+    /// 右侧工具栏直接溢出窗口外（实测本机 2560x1600 @150% 就是这样）。
+    ///
+    /// 策略：取工作区的 88%，并保证逻辑尺寸不低于布局能容下的下限。
+    /// </summary>
+    private static void FitToDisplay(AppWindow appWindow, IntPtr hwnd)
+    {
+        const int MinLogicalWidth = 1100;
+        const int MinLogicalHeight = 700;
+        const double WorkAreaRatio = 0.88;
+
+        int dpi = Win32.GetDpiForWindow(hwnd);
+        if (dpi <= 0) dpi = 96;
+        double scale = dpi / 96.0;
+
+        int workW = 0, workH = 0;
+        try
+        {
+            var display = DisplayArea.GetFromWindowId(
+                Win32Interop.GetWindowIdFromWindow(hwnd),
+                DisplayAreaFallback.Nearest);
+            workW = display?.WorkArea.Width ?? 0;
+            workH = display?.WorkArea.Height ?? 0;
+        }
+        catch
+        {
+            // 取不到显示器信息就用 DPI 推出的保守值，别让窗口开不出来
+        }
+
+        if (workW <= 0 || workH <= 0)
+        {
+            workW = (int)(1440 * scale);
+            workH = (int)(900 * scale);
+        }
+
+        // 先按逻辑尺寸定下限，再换算回物理像素
+        int logicalW = Math.Max((int)(workW / scale * WorkAreaRatio), MinLogicalWidth);
+        int logicalH = Math.Max((int)(workH / scale * WorkAreaRatio), MinLogicalHeight);
+        int physW = (int)(logicalW * scale);
+        int physH = (int)(logicalH * scale);
+
+        // 别超过工作区（超了会出现任务栏遮挡或窗口挪到屏幕外）
+        physW = Math.Min(physW, workW);
+        physH = Math.Min(physH, workH);
+
+        appWindow.MoveAndResize(new Windows.Graphics.RectInt32(0, 0, physW, physH));
     }
 
     /// <summary>

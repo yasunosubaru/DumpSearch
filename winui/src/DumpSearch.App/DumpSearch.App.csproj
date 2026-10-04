@@ -30,6 +30,17 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <SatelliteResourceLanguages>zh-Hans;en-US</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+
+    <!--
+      不要生成调试信息。
+      即使打包时剔掉了 .pdb 文件，DumpSearch.dll **自身**仍带着一个
+      CodeView 调试目录条目（形如 RSDS…\V:\Developer\Dump search\…\obj\Release\），
+      里面是**完整的本机编译路径**。这等于把构建者的目录结构和盘符一起发出去。
+      DebugType=none 让编译器不写这个条目。
+      要本地调试就在命令行临时覆盖：dotnet build -c Debug -p:DebugType=portable
+    -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
