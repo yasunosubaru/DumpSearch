@@ -53,17 +53,34 @@ def git(args: list[str], timeout: int = 120) -> tuple[int, str]:
     return r.returncode, ((r.stdout or "") + (r.stderr or "")).strip()
 
 
-def curl_code(url: str, timeout: int = 30) -> str:
-    r = subprocess.run(["curl.exe", "-s", "-o", "NUL", "-w", "%{http_code}",
-                        "--max-time", str(timeout), "-L", url],
-                       capture_output=True, text=True, timeout=timeout + 15)
-    return (r.stdout or "").strip() or "ERR"
+def curl_code(url: str, timeout: int = 15) -> str:
+    """匿名取一个 URL 的 HTTP 状态码。
+
+    必须给 curl 显式传代理：它**不读** git 的 http.proxy 配置，
+    直连 github.com 会挂到超时，整条核对就卡死在这里。
+    超时压到 15 秒——连通性探测不需要慢慢等。
+    """
+    cmd = ["curl.exe", "-s", "-o", "NUL", "-w", "%{http_code}",
+           "--max-time", str(timeout), "-L"]
+    proxy = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+             or os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy"))
+    if proxy:
+        cmd += ["--proxy", proxy]
+    cmd.append(url)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=timeout + 10)
+        return (r.stdout or "").strip() or "ERR"
+    except subprocess.TimeoutExpired:
+        return "TIMEOUT"
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--public", action="store_true",
-                    help="额外用匿名请求验证不可访问")
+                    help="额外用匿名请求验证实际可见性")
+    ap.add_argument("--expect", choices=["public", "private"], default=None,
+                    help="期望的可见性。不给就只报告实测值，不判对错")
     args = ap.parse_args()
 
     problems: list[str] = []
@@ -93,6 +110,21 @@ def main() -> int:
         print(f"   读取远端失败: {out[:200]}")
         problems.append("无法读取远端 main")
 
+    # 公开仓库里最要紧的一条：作者邮箱绝不能是真实邮箱
+    rc3, _out3, commits = gh(["api", f"repos/{REPO}/commits?per_page=100"])
+    if rc3 == 0 and isinstance(commits, list):
+        real_mail = set()
+        for c in commits:
+            a = (c.get("commit") or {}).get("author") or {}
+            mail = (a.get("email") or "").lower()
+            if mail and "noreply.github.com" not in mail:
+                real_mail.add(mail)
+        if real_mail:
+            print(f"   [注意] 有提交使用非 noreply 邮箱: {sorted(real_mail)}")
+            problems.append(f"git 历史里有真实邮箱: {sorted(real_mail)}")
+        else:
+            print(f"   作者邮箱: 全部 noreply（{len(commits)} 个提交）")
+
     print("\n3. tag")
     rc, out, data = gh(["api", f"repos/{REPO}/git/ref/tags/{VERSION}"])
     if rc == 0 and isinstance(data, dict):
@@ -119,8 +151,17 @@ def main() -> int:
         print(f"   读取失败: {out[:200]}")
         problems.append("无法读取 Release")
 
-    if args.public:
-        print("\n5. 匿名可访问性（私有仓库应全部 404/000）")
+    if args.public or args.expect:
+        expect = args.expect
+        if expect is None:
+            # 没给期望值就从仓库实际可见性推，别硬编码某个方向
+            expect = "public" if (isinstance(info, dict)
+                                  and info.get("visibility") == "PUBLIC") else "private"
+        want = "2xx" if expect == "public" else "404/000"
+        print(f"\n5. 匿名可访问性（期望 {expect}，匿名应返回 {want}）")
+
+        # 私有仓库一律 404/000/403/401；公开仓库应至少有一个入口 2xx
+        results = {}
         for url, label in (
             (f"https://github.com/{REPO}", "仓库网页"),
             (f"https://api.github.com/repos/{REPO}", "API"),
@@ -128,9 +169,20 @@ def main() -> int:
             (f"https://raw.githubusercontent.com/{REPO}/main/README.md", "raw 文件"),
         ):
             code = curl_code(url)
+            results[label] = code
             print(f"   {code:>4}  {label}")
-            if code not in ("404", "000", "403", "401"):
-                problems.append(f"{label} 匿名返回 {code}，可能仍是公开的")
+
+        # raw.githubusercontent 经常超时（000），不作为判定依据
+        codes = [c for lbl, c in results.items() if lbl != "raw 文件"]
+        reachable = [c for c in codes if c.startswith("2")]
+        if expect == "private":
+            bad = [c for c in codes if c.startswith("2")]
+            if bad:
+                problems.append(f"期望私有，但匿名能访问: {bad}")
+        else:
+            if not reachable:
+                problems.append(
+                    f"期望公开，但匿名访问全部失败: {codes}（raw 文件超时可忽略）")
 
     print()
     if problems:
