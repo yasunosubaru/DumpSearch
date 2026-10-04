@@ -96,7 +96,23 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--keep", action="store_true",
                     help="保留 %s（默认保留，只在明确要求时清理）" % DEMO_DIR)
+    ap.add_argument("--verify-only", action="store_true",
+                    help="只核查已生成的截图是否含本机用户名，不重新截图")
     args = ap.parse_args()
+
+    if args.verify_only:
+        print("核查截图是否含本机用户名")
+        if not os.path.isdir(SHOTS):
+            print(f"  [跳过] 截图目录不存在: {SHOTS}")
+            return 0
+        bad = verify_clean()
+        if bad:
+            print("  [失败] 以下截图含用户名残留，不能放进公开仓库:")
+            for b in bad:
+                print(f"    {b}")
+            return 1
+        print("  干净")
+        return 0
 
     if not os.path.exists(EXE):
         print(f"找不到 exe，先构建:\n  cd {WINUI}\\src\\DumpSearch.App && "
