@@ -3,6 +3,8 @@
 Windows 桌面工具。**按内容**找出全盘重复文件，分层比对把"读全文"压到最少文件上，
 清理时默认**移入回收站**（可撤销），并且必须**先预览、再确认**。
 
+![结果列表](docs/images/results.png)
+
 **两个前端，共用同一套安全契约：**
 
 | | 技术栈 | 适合 |
@@ -13,6 +15,10 @@ Windows 桌面工具。**按内容**找出全盘重复文件，分层比对把"�
 两边算法与安全设计一致（分层过滤 / 硬链接折叠 / 逐字节校验 / 回收站回滚 /
 删除前审计），代码各写一份——UI 框架不同，强行共用只会把两边都写坏。
 
+> 判断"该删哪一份"靠的是**位置**和**修改时间**，所以列表把文件名和所在目录
+> 合成一列，时间显示成「今天 17:14」「3 天前」这种相对形式——让人心算两个
+> `yyyy-MM-DD` 的差值是没必要的负担。
+
 ---
 
 ## 快速开始
@@ -21,6 +27,8 @@ Windows 桌面工具。**按内容**找出全盘重复文件，分层比对把"�
 
 从 [Releases](../../releases) 下载 `DumpSearch-v*-win-x64-selfcontained.zip`，
 解压双击 `DumpSearch.exe` 即可，**不需要安装 .NET 或 Windows App Runtime**（自包含）。
+
+> 系统要求：Windows 10 1809 (17763) 及以上，x64。
 
 不想下载 zip、想自己构建的话，仓库里有启动器和快捷方式生成脚本：
 
@@ -174,8 +182,25 @@ python winui\tools\lint_xaml.py                       :: XAML 静态检查
 | `tools\gui_smoke_test.py` | 真实建窗口、跑扫描、驱动事件循环、截图 |
 | `tools\e2e_check.py` | 端到端：干跑/取消/`--dry-run` **必须零删除**，确认后进回收站 |
 | `tools\make_fixtures.py` | 生成含 773 字符长路径的受控测试树 |
+| `tools\scan_secrets.py` | 提交前扫描暂存区里的用户名、邮箱、本机绝对路径 |
+| `tools\scan_release_zip.py` | 扫描发布 zip 里的本机路径（构建过程会往产物里塞） |
+| `tools\make_screenshots.py` | 用**中性路径**生成说明页截图，并做字节级核查 |
+| `tools\rewrite_author.py` | 转公开前重写 git 历史里的作者邮箱 |
 | `DumpSearch.exe --selftest` | WinUI 侧 116 项：长路径可达性、保留策略、逐组保留项、扫描范围、进度模型、悬停详情内容 |
 | `winui\tools\lint_xaml.py` | 把"XAML 编译能过、运行时才崩"的坑挡在构建之前（见 `winui/README.md`） |
+
+---
+
+## 界面
+
+| | |
+|---|---|
+| ![主界面](docs/images/main-window.png) | ![扫描进度](docs/images/progress.png) |
+
+扫描进度是**五级阶段步进器**而不是一根进度条。核心约束：
+**总量未知的阶段绝不编造百分比**。遍历目录要先走完才知道有多少文件，
+所以那一格只显示「已枚举 N 个文件」；总进度里它用
+「已读字节 / 所选卷总容量」参与计算，并在界面底部标明这是**估算**。
 
 ---
 
@@ -237,6 +262,18 @@ python winui\tools\lint_xaml.py                       :: XAML 静态检查
     WPF 有这个 TypeConverter，跨框架经验在这里会直接把人带进坑里。
     `winui\tools\lint_xaml.py` 现在会机械拦住这一类写法。
 
+14. **`PublishSingleFile` 对 WinUI 3 不可用。** 单文件把资源塞进 exe，
+    而 XAML 资源加载器要求 `.pri` 是磁盘上的真实文件，结果启动即崩。
+    必须用目录式自包含发布再打包。
+
+15. **`.pdb` 剔了不等于没泄露。** `DumpSearch.dll` 自身带 CodeView 调试目录
+    条目，里面是**完整本机编译路径**。要 `<DebugType>none</DebugType>`，
+    否则剔掉 `.pdb` 照样把构建目录结构发出去。
+
+16. **`AppWindow.Resize` 收的是物理像素，布局按逻辑像素算。** 写死
+    `1440x900` 在 150% 缩放的屏幕上只有 960x600 逻辑宽度，固定宽度的左栏
+    直接把工具栏顶出窗口。按显示器工作区与 DPI 适配才靠谱。
+
 ---
 
 ## 已知限制
@@ -252,3 +289,22 @@ python winui\tools\lint_xaml.py                       :: XAML 静态检查
   会把扫描拖慢一个数量级。详情只展示扫描时已经在手的数据。
 * 两个前端的实现是各写一份的。改了算法（比如换哈希函数）需要**同时**改
   `dupehunter/` 和 `winui/src/DumpSearch.App/Core/`，目前没有自动化的一致性检查。
+
+---
+
+## 许可
+
+[MIT](LICENSE) © 2026 yasunosubaru
+
+## 隐私
+
+提交与发布前都会做脱敏核查，工具在 `tools/` 下：
+
+```bat
+python tools\scan_secrets.py --all      :: 扫源码：用户名、邮箱、本机绝对路径
+python tools\scan_release_zip.py        :: 扫发布包：构建过程会往产物里塞路径
+python tools\rewrite_author.py <旧> <新>  :: 重写 git 历史里的作者邮箱
+```
+
+已知的三类泄露点，都在上面「踩过的坑」里有对应条目：
+构建产物里的编译路径、截图里的用户目录、git 历史里的作者邮箱。
